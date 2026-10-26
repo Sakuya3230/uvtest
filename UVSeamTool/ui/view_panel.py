@@ -4,15 +4,15 @@
 
 from ..compat.qt import QtCore, QtGui, QtWidgets
 from .panel_separator import PanelSeparator
-from .round_button import RoundButton
+from .round_button import RoundButton, button_height
 
 OBJECT_NAME = "UVSeamToolViewPanel"   # リロードのあとでも見つけて消せるように
 SEPARATOR   = None                    # ボタンの列の中に置くと、そこに区切り線を入れる
 
 _BACKGROUND = QtGui.QColor(30, 32, 36, 215)
 _BORDER     = QtGui.QColor(90, 140, 210)
-_MARGINS    = (6, 5, 6, 4)      # 左・上・右・下の余白
-_ROW_GAP    = 2                 # 段の間
+_MARGINS    = (6, 5, 6, 4)      # 左・上・右・下の余白 (倍率 1 のとき)
+_ROW_GAP    = 2                 # 段の間 (倍率 1 のとき)
 
 
 class ViewPanel(QtWidgets.QWidget):
@@ -23,12 +23,13 @@ class ViewPanel(QtWidgets.QWidget):
     幅が足りなければ折り返して何段かにする (fitWidth。ビューを狭くしたとき)。段の端に来た区切り線は出さない。
     部品の位置は自分で決める (レイアウトを使わない。折り返しの並べ直しを簡単にするため)。
     押してもフォーカスを奪わない (WindowDoesNotAcceptFocus) ので、押したあとも Maya のキーが効く。
+    全体の大きさは倍率 scale (1 = 標準。ボタン・字・区切り線・余白をまとめて変える。setScale で替えられる)。
     """
 
     actionTriggered = QtCore.Signal(str)
 
     # -- 特殊メソッド ---------------------------------------------------------
-    def __init__(self, actions, owner):
+    def __init__(self, actions, owner, scale=1.0):
         super().__init__(owner)
         flags = (QtCore.Qt.Tool | QtCore.Qt.FramelessWindowHint | QtCore.Qt.NoDropShadowWindowHint
                  | QtCore.Qt.WindowDoesNotAcceptFocus)
@@ -41,14 +42,16 @@ class ViewPanel(QtWidgets.QWidget):
         self._buttons   = {}            # ID -> RoundButton
         self._items     = []            # 並べる順の部品 (RoundButton か PanelSeparator)
         self._rows      = None          # 今の段の分け方 (段ごとの部品の番号の列。_arrange で決める)
+        self._scale     = scale         # 倍率
+        self._fit       = 10 ** 6       # 最後に fitWidth で受け取った幅
 
         for action in actions:
             if action is SEPARATOR:
-                self._items.append(PanelSeparator(RoundButton.HEIGHT, self))
+                self._items.append(PanelSeparator(button_height(scale), self, scale))
                 continue
 
             action_id, label, checkable = action
-            button = RoundButton(action_id, label, self)   # アイコンは ID と同じ名前 (ui.icons)
+            button = RoundButton(action_id, label, scale, self)   # アイコンは ID と同じ名前 (ui.icons)
             button.setCheckable(checkable)
             button.clicked.connect(lambda checked=False, action_id=action_id: self.actionTriggered.emit(action_id))
             self._buttons[action_id] = button
@@ -67,11 +70,29 @@ class ViewPanel(QtWidgets.QWidget):
     # -- 公開メソッド ---------------------------------------------------------
     def fitWidth(self, width):
         """幅 width (ピクセル) に収まるよう、段の分け方を決め直す (変わらなければ何もしない)。"""
+        self._fit  = width
         separators = {index for index, item in enumerate(self._items) if isinstance(item, PanelSeparator)}
-        rows       = split_rows([item.width() for item in self._items], separators,
-                                width - _MARGINS[0] - _MARGINS[2])
+        margins    = self._margins()
+        rows       = split_rows([item.width() for item in self._items], separators, width - margins[0] - margins[2])
         if rows != self._rows:
             self._arrange(rows)
+
+    def setScale(self, scale):
+        """全体の大きさの倍率を替える (ボタン・区切り線を作り直して、段を並べ直す)。"""
+        if scale == self._scale:
+            return
+
+        self._scale = scale
+        for item in self._items:
+            if isinstance(item, PanelSeparator):
+                item.setSize(button_height(scale), scale)
+            else:
+                item.setScale(scale)
+        self._rows = None
+        self.fitWidth(self._fit)
+
+    def scale(self):
+        return self._scale
 
     def setChecked(self, action_id, checked):
         """切り替えのボタンの見た目を合わせる (押されたことにはしない)。"""
@@ -88,25 +109,32 @@ class ViewPanel(QtWidgets.QWidget):
         button.update()
 
     # -- 非公開メソッド -------------------------------------------------------
+    def _margins(self):
+        # 倍率をかけた余白 (左・上・右・下)
+        return tuple(int(round(margin * self._scale)) for margin in _MARGINS)
+
     def _arrange(self, rows):
         # rows (段ごとの部品の番号) のとおりに部品を置き、パネルの大きさを合わせる。段に入らない区切り線は隠す
         self._rows  = rows
         placed      = {index for row in rows for index in row}
+        margins     = self._margins()
+        gap         = int(round(_ROW_GAP * self._scale))
+        height      = button_height(self._scale)
         width       = 0
-        y           = _MARGINS[1]
+        y           = margins[1]
         for row in rows:
-            x = _MARGINS[0]
+            x = margins[0]
             for index in row:
                 item = self._items[index]
                 item.move(x, y)
                 x += item.width()
             width = max(width, x)
-            y    += RoundButton.HEIGHT + _ROW_GAP
+            y    += height + gap
 
         for index, item in enumerate(self._items):
             item.setVisible(index in placed)
 
-        self.setFixedSize(width + _MARGINS[2], y - _ROW_GAP + _MARGINS[3])
+        self.setFixedSize(width + margins[2], y - gap + margins[3])
         self.update()
 
 

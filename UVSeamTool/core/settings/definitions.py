@@ -39,6 +39,9 @@ DEFINITIONS = (
 
     # ビューのパネル (オフでも、キーとマーキングメニュー (Shift+右クリック) で同じ操作ができる)
     Setting("showPanel",            BOOL,   True,               "ビューのパネルを表示",     _DISPLAY),
+    # パネル全体の大きさの倍率 (ボタン・字・区切り線・余白をまとめて。1 = 標準)
+    Setting("panelScale",           FLOAT,  1.0,                "パネルの大きさ (倍率)",    _DISPLAY,
+            minimum=0.5, maximum=2.0),
 
     # 線の太さと点の大きさ (ピクセル)。選んでいる線は +1、選んでいる点は +3・マウスの下の点は +4・挿入の印は -1 で描く
     Setting("lineWidth",            FLOAT,  3.0,                "ガイドの線の太さ",         _DISPLAY,

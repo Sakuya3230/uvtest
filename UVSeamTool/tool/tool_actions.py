@@ -176,6 +176,9 @@ class ToolActions:
             self._apply_straightness()
         if key == "showPanel":
             self._show_panel(settings.current().value("showPanel"))
+        if key == "panelScale" and self._panel is not None:
+            self._panel.setScale(settings.current().value("panelScale"))
+            panel_host.place_panel(self._panel)   # 大きさを変えたのと同じ処理の中で位置も置く (ビューの外にはみ出して見えない)
         self.sync()
         view.refresh()
 

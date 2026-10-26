@@ -22,6 +22,7 @@
 
 - カット / 縫合のあとの選択: `polyMapCut` / `polyMapSew` は終わると操作したエッジを選択に足すので、`utils/uv_editor.py` が呼ぶ前後で選択を元に戻す（`_keep_selection`。エッジを選ぶのはツールを抜けるときの `exit_selection` だけ）。テスト `test_cut_and_sew_keep_selection`
 - 設定 `deleteGuideOnComplete`（確定後にガイドを削除。ユーザーの要望: 自動カットのあとは確定したガイドをいじらないことが多いため。`tool/create_tool.complete` が、確定と同時に `set_editing.remove_guides` で消す = 1 回の Undo で作成中に戻る。マーキングメニューの「自動 >」W にも）。テスト `test_delete_guide_on_complete`
+- 設定 `panelScale`（パネルの大きさの倍率 0.5〜2.0。`ViewPanel.setScale` が、`RoundButton.setScale`・区切り線・余白・段の間をまとめて替え、最後の幅で並べ直す。位置は、倍率を変えた同じ処理の中で `panel_host.place_panel` が置く。見回り (0.25 秒) を待つと、大きくなったパネルが一瞬ビューの外にはみ出して見えた）。テスト `test_panel.py`（Qt の offscreen）
 - 設定 `lineWidth`（ガイドの線の太さ）と `pointSize`（点の大きさ）。ツール設定のウィンドウの「表示」。版 2 は実装メモだけ（[UVSeamTool2/docs/memo_display_sizes.md](../../UVSeamTool2/docs/memo_display_sizes.md)）
 
 ## 版 1 から外したもの (版 2 にある)
